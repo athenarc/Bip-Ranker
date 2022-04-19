@@ -117,9 +117,13 @@ Particular lines that may require changes:
   
 # Please Cite
   
-If you use our scripts, for RAM / PageRank / CC, please cite
+If you use our scripts, for RAM / PageRank / CC, please cite:
  
 > Kanellos I, Vergoulis T, Sacharidis D, Dalamagas T, Vassiliou Y. Impact-based ranking of scientific publications: a survey and experimental evaluation. IEEE Transactions on Knowledge and Data Engineering. 2019 Sep 13;33(4):1567-84.
+ 
+> Vergoulis T, Chatzopoulos S, Kanellos I, Deligiannis P, Tryfonopoulos C, Dalamagas T. Bip! finder: Facilitating scientific literature search by exploiting impact-based ranking. InProceedings of the 28th ACM International Conference on Information and Knowledge Management 2019 Nov 3 (pp. 2937-2940).
+  
+> Vergoulis T, Kanellos I, Atzori C, Mannocci A, Chatzopoulos S, Bruzzo SL, Manola N, Manghi P. Bip! db: A dataset of impact measures for scientific publications. InCompanion Proceedings of the Web Conference 2021 2021 Apr 19 (pp. 456-460).
 
 (of course you should also cite the original works based on which these methods were implemented)
   
