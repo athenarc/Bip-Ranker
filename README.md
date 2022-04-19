@@ -114,4 +114,16 @@ To run these scripts on another cluster, some lines of code may need to be chang
 Particular lines that may require changes:
   * from __future__ import print_function: remove this line if the cluster is python3 compatible
   * master_prefix = "/".join(input_file.split("/")[:5]): where applicable, this line may need to change. It determines the prefix of the output directory, based on how files in the hdfs are referenced (this is setup specific). As is, it works for calling input graphs referenced as hdfs:///user/<user_name>/<path_to_graph_file_on_hdfs>
+  
+# Please Cite
+  
+If you use our scripts, for RAM / PageRank / CC, please cite
+ 
+> Kanellos I, Vergoulis T, Sacharidis D, Dalamagas T, Vassiliou Y. Impact-based ranking of scientific publications: a survey and experimental evaluation. IEEE Transactions on Knowledge and Data Engineering. 2019 Sep 13;33(4):1567-84.
+
+(of course you should also cite the original works based on which these methods were implemented)
+  
+For AttRank please cite:
+ 
+> Kanellos I, Vergoulis T, Sacharidis D, Dalamagas T, Vassiliou Y. Ranking papers by their short-term scientific impact. In2021 IEEE 37th International Conference on Data Engineering (ICDE) 2021 Apr 19 (pp. 1997-2002). IEEE.
 
