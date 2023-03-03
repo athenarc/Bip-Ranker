@@ -43,7 +43,7 @@ tab-separated columns:
   
 **NOTE2:** When a paper has no references, then the comma separated list of reference papers is the string "0" and the same holds for the number of referenced_papers.
   
-## Iterative Methods
+## Notes on Iterative Methods
   
 Due to some of the methods being iterative, some spark-computation specific parameters are required. Specifically, since particular dataframes are
 computed iteratively, we need to **checkpoint** them at each iteration. Checkpointing materializes a dataframe and truncates its computation history
@@ -53,7 +53,23 @@ checkpoint_mode.  For very large graphs (e.g., Bip, openaire), materialization s
 scripts failing. On smaller graphs (e.g., dblp) this can be done using local checkpointing. Naturally, checkpointing on hdfs is IO-heavy, and hence 
 leads to slower execution, however our trials so far show that for large graphs (e.g., Bip), using local checkpointing leads to errors and failure.
 
+## Output format of Scripts
 
+All scripts of this repository produce their output in a common format (detailed at the end of this Section).
+  
+Apart from the ranking score calculation itself, which differs per script, all scripts also include a common post-processing procedure, 
+which adds to the output files information about the class of each paper based on its score (i.e., the percentile of top scores which they
+fall in).. Additionally this post processing step writes tou the standard output the cutoff scores separating the various percentiles. These
+messages are required to facilitate the updates in FiP! Finder's data).
+  
+Te output format of all scripts is a tab separated 3-column format consisting of the follofinw data: 
+  
+ > <paper_id> <ranking_score> <paper_class>
+  
+ he paper class takes the values {C1, C2, C3, C4, C5}, which correspond to papers belonging to the top {0.01, 0.1, 1, 10} percentiles for classes 
+ C1-C4, respectively, and the botton 90% for class C5.
+
+  
 ## PageRank.py
   
 This script implements google's pagerank method on a citation graph. The expected pagerank-specific parameter is the probability a, which determines
