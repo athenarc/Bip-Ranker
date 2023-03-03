@@ -11,6 +11,10 @@ may need to be commented out.
 When invoking any of the scripts from the command line without any arguments provided, they will output the expected input parameters and exit.
 For a quick refresher on what to pass in the command line, first try this, before delving into the details provided in the following sections.
 
+### Particular lines that may require changes:
+  * from __future__ import print_function: remove this line if the cluster is python3 compatible
+  * master_prefix = "/".join(input_file.split("/")[:5]): where applicable, this line may need to change. It determines the prefix of the output directory, based on how files in the hdfs are referenced (this is setup specific). As is, it works for calling input graphs referenced as hdfs:///user/<user_name>/<path_to_graph_file_on_hdfs>
+
 ## Openaire gateway - cluster setup
 
 On the openaire gateway to the cluster, all distributed computation infrastructures have been set up in a particular configuration.
@@ -29,6 +33,8 @@ However, the scripts expect a full input path for all files, in order to work. H
 **ΝΟΤΕ:** spark is faster when it loads data from a directory containing partitioned files. Hence, it is advised to have the graph split in many 
 smaller parts (e.g., equan to the suggested number of partitions in the cluster - 7680 on openaire's IIS) and have it in a golder e.g., 
 /user/<user_name>/path/to/graph_input_folder/
+
+
 
 ## Graph input
 
@@ -85,7 +91,7 @@ Run the script as follows (7680 corresponds to the number of partitions, which w
 ## CC.py
   
 This script implements both the citation count, as well as calculating the impulse (i.e., the citation count up to n years after publication) of a paper.
-It takes as input the graph file, the number of partitions used, as well as an optional argument determining the n years to use in order to calculate the impulse. The result is a two-column file in the hdfs where the first column corresponds to a paper id and the second column corresponds to the calculated score. Result files will be found under the same directory in hdfs as the graph input file, and their name it the graph file name prefixed by "CC_" or "N-year_CC_", depending on the mode used to run it. 
+It takes as input the graph file, the number of partitions used, as well as an optional argument determining the n years to use in order to calculate the impulse. Result files will be found under the same directory in hdfs as the graph input file, and their name it the graph file name prefixed by "CC_" or "N-year_CC_", depending on the mode used to run it. 
   
 When running from command line, some spark specific parameters are provided. In the following examples we present the values used on the openaire cluster. Further, based on examples of scripts run on the openaire cluster by other members, the number of partitions used is 7680.
   
@@ -101,8 +107,7 @@ To use impulse mode, run as:
   
 This script implements the RAM / ECM methods described in the paper "Time-aware ranking in dynamic citation networks". Essentially, RAM is a modified 
 citation count, where each citation is considered more important the more recently it was made. ECM is a variation that counts weighted citation paths
-that lead to each paper, where each citation weight is discounted based on when it was made, and how far in the citation path it occurs. The result of 
-the script is a two-column file where the first column corresponds to the paper id and the second column corresponds to the score calculated. The result
+that lead to each paper, where each citation weight is discounted based on when it was made, and how far in the citation path it occurs. The result
 file is written in the same folder as the input graph in hdfs, prefixed by RAM_ or ECM_ depending on the mode. Additionally, the filename includes 
 information on the parameters used to run the script (exponential base gamma for simple RAM and gamma and attenuation factor alpha for ECM). Additionally
 the scripts require some execution mode specific parameters, such as the number of partitions, the checkpointing directory and the checkpointing mode.
@@ -130,11 +135,7 @@ Run the script as:
 ## Moving scripts to other clusters
   
 To run these scripts on another cluster, some lines of code may need to be changed and additional spark-specific parameters may need to be passed in the command line.
-  
-Particular lines that may require changes:
-  * from __future__ import print_function: remove this line if the cluster is python3 compatible
-  * master_prefix = "/".join(input_file.split("/")[:5]): where applicable, this line may need to change. It determines the prefix of the output directory, based on how files in the hdfs are referenced (this is setup specific). As is, it works for calling input graphs referenced as hdfs:///user/<user_name>/<path_to_graph_file_on_hdfs>
-  
+    
 # Please Cite
   
 If you use our scripts, for RAM / PageRank / CC, please cite:
