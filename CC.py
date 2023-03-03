@@ -166,14 +166,14 @@ top_001_offset	= int(num_papers * 0.0001)
 top_01_offset	= int(num_papers * 0.001)
 top_1_offset	= int(num_papers * 0.01)
 top_10_offset	= int(num_papers * 0.1)
-top_20_offset	= int(num_papers * 0.2)
+# top_20_offset	= int(num_papers * 0.2)
 # ------------------------------------------------------------------------------------------------------ #
 # This code is included for small testing datasets. The percentages required may be < 1 for small datasets
 top_001_offset = 1 if top_001_offset <= 1 else top_001_offset
 top_01_offset = 1 if top_001_offset <= 1 else top_01_offset
 top_1_offset = 1 if top_1_offset <= 1 else top_1_offset
 top_10_offset = 1 if top_10_offset <= 1 else top_10_offset
-top_20_offset = 1 if top_20_offset <= 1 else top_20_offset
+# top_20_offset = 1 if top_20_offset <= 1 else top_20_offset
 # ------------------------------------------------------------------------------------------------------ #
 	
 # Time it
@@ -187,8 +187,8 @@ print ("Calculated distinct scores num (" + str(distinct_scores_count) + "), tim
 # Time it
 start_time = time.time()
 # Get scores based on which we find the top 20%, 10%, etc
-distinct_scores = distinct_scores.where(F.col('cumulative') <= top_20_offset ).orderBy(F.col('cc').asc()).cache()
-top_20_score  = distinct_scores.first()['cc']
+# distinct_scores = distinct_scores.where(F.col('cumulative') <= top_20_offset ).orderBy(F.col('cc').asc()).cache()
+# top_20_score  = distinct_scores.first()['cc']
 distinct_scores = distinct_scores.where(F.col('cumulative') <= top_10_offset ).orderBy(F.col('cc')).cache()
 top_10_score  = distinct_scores.first()['cc']
 distinct_scores = distinct_scores.where(F.col('cumulative') <= top_1_offset ).orderBy(F.col('cc')).cache()
@@ -204,11 +204,20 @@ print ("Calculated minimum scores of the various classes, time: {} seconds ---".
 print ("Max score is: " + str(max_score))
 print ("Number of papers is: " + str(num_papers))
 
-print ("Top 20% score is: " + str(top_20_score))
+# print ("Top 20% score is: " + str(top_20_score))
 print ("Top 10% score is: " + str(top_10_score))
 print ("Top 1% score is: " + str(top_1_score))
 print ("Top 0.1% score is: " + str(top_01_score))
 print ("Top 0.01% score is: " + str(top_001_score))
+
+print ("\n\nTable")
+print ("Percentage\tScore")
+print ("10%\t" + str(top_10_score))
+print ("1%\t" + str(top_1_score))
+print ("0.1%\t" + str(top_01_score))
+print ("0.01%\t" + str(top_001_score))
+print ("\n\n")
+# ---------------------------------------------- #
 # ---------------------------------------------- #
 
 # ---------------------------------------------- #
@@ -226,12 +235,12 @@ valid_citations = valid_citations.withColumn('three_point_class', F.when(F.col(c
 valid_citations = valid_citations.select(F.regexp_replace('paper', 'comma_char', ',').alias('doi'), column_name, 'normalized_' + column_name, 'three_point_class')
 
 # Add six point class to score dataframe
-valid_citations = valid_citations.withColumn('six_point_class', F.lit('F'))
-valid_citations = valid_citations.withColumn('six_point_class', F.when(F.col(column_name) >= top_20_score, F.lit('E')).otherwise(F.col('six_point_class')) )
-valid_citations = valid_citations.withColumn('six_point_class', F.when(F.col(column_name) >= top_10_score, F.lit('D')).otherwise(F.col('six_point_class')) )
-valid_citations = valid_citations.withColumn('six_point_class', F.when(F.col(column_name) >= top_1_score, F.lit('C')).otherwise(F.col('six_point_class')) )
-valid_citations = valid_citations.withColumn('six_point_class', F.when(F.col(column_name) >= top_01_score, F.lit('B')).otherwise(F.col('six_point_class')) )
-valid_citations = valid_citations.withColumn('six_point_class', F.when(F.col(column_name) >= top_001_score, F.lit('A')).otherwise(F.col('six_point_class')) )
+valid_citations = valid_citations.withColumn('five_point_class', F.lit('E'))
+# valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_20_score, F.lit('E')).otherwise(F.col('five_point_class')) )
+valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_10_score, F.lit('D')).otherwise(F.col('five_point_class')) )
+valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_1_score, F.lit('C')).otherwise(F.col('five_point_class')) )
+valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_01_score, F.lit('B')).otherwise(F.col('five_point_class')) )
+valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_001_score, F.lit('A')).otherwise(F.col('five_point_class')) )
 
 
 print ("Finished! Writing output to file...")

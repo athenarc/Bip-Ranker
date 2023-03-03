@@ -275,14 +275,14 @@ top_001_offset	= int(num_nodes * 0.0001)
 top_01_offset	= int(num_nodes * 0.001)
 top_1_offset	= int(num_nodes * 0.01)
 top_10_offset	= int(num_nodes * 0.1)
-top_20_offset	= int(num_nodes * 0.2)
+# top_20_offset	= int(num_nodes * 0.2)
 # ------------------------------------------------------------------------------------------------------ #
 # This code is included for small testing datasets. The percentages required may be < 1 for small datasets
 top_001_offset = 1 if top_001_offset <= 1 else top_001_offset
 top_01_offset = 1 if top_001_offset <= 1 else top_01_offset
 top_1_offset = 1 if top_1_offset <= 1 else top_1_offset
 top_10_offset = 1 if top_10_offset <= 1 else top_10_offset
-top_20_offset = 1 if top_20_offset <= 1 else top_20_offset
+# top_20_offset = 1 if top_20_offset <= 1 else top_20_offset
 # ------------------------------------------------------------------------------------------------------ #	
 # Get distinct scores and find score values for top 20%, 10% etc...
 
@@ -297,8 +297,8 @@ print ("Calculated distinct scores num (" + str(distinct_scores_count) + "), tim
 # Time it
 start_time = time.time()
 # Get scores based on which we find the top 20%, 10%, etc
-distinct_scores = distinct_scores.where(F.col('cumulative') <= top_20_offset ).orderBy(F.col('score').asc()).cache()
-top_20_score  = distinct_scores.first()['score']
+# distinct_scores = distinct_scores.where(F.col('cumulative') <= top_20_offset ).orderBy(F.col('score').asc()).cache()
+# top_20_score  = distinct_scores.first()['score']
 distinct_scores = distinct_scores.where(F.col('cumulative') <= top_10_offset ).orderBy(F.col('score')).cache()
 top_10_score  = distinct_scores.first()['score']
 distinct_scores = distinct_scores.where(F.col('cumulative') <= top_1_offset ).orderBy(F.col('score')).cache()
@@ -312,11 +312,19 @@ print ("Calculated minimum scores of the various classes, time: {} seconds ---".
 # Inform the user of statistics
 print ("Max score is: " + str(max_score))
 print ("Number of papers is: " + str(num_nodes))
-print ("Top 20% score is: " + str(top_20_score))
+# print ("Top 20% score is: " + str(top_20_score))
 print ("Top 10% score is: " + str(top_10_score))
 print ("Top 1% score is: " + str(top_1_score))
 print ("Top 0.1% score is: " + str(top_01_score))
 print ("Top 0.01% score is: " + str(top_001_score))
+
+print ("\n\nTable")
+print ("Percentage\tScore")
+print ("10%\t" + str(top_10_score))
+print ("1%\t" + str(top_1_score))
+print ("0.1%\t" + str(top_01_score))
+print ("0.01%\t" + str(top_001_score))
+print ("\n\n")
 # ---------------------------------------------- #
 # Add 3-scale classes to score dataframe
 scores = scores.select('paper', F.col('score').alias('ram'))\
@@ -327,12 +335,12 @@ scores = scores.withColumn('three_point_class', F.when(scores.ram >= top_001_sco
 scores = scores.select(F.regexp_replace('paper', 'comma_char', ',').alias('doi'), 'ram', 'normalized_ram', 'three_point_class')
 
 # Add six point class to score dataframe
-scores = scores.withColumn('six_point_class', F.lit('F'))
-scores = scores.withColumn('six_point_class', F.when(scores.ram >= top_20_score, F.lit('E')).otherwise(F.col('six_point_class')) )
-scores = scores.withColumn('six_point_class', F.when(scores.ram >= top_10_score, F.lit('D')).otherwise(F.col('six_point_class')) )
-scores = scores.withColumn('six_point_class', F.when(scores.ram >= top_1_score, F.lit('C')).otherwise(F.col('six_point_class')) )
-scores = scores.withColumn('six_point_class', F.when(scores.ram >= top_01_score, F.lit('B')).otherwise(F.col('six_point_class')) )
-scores = scores.withColumn('six_point_class', F.when(scores.ram >= top_001_score, F.lit('A')).otherwise(F.col('six_point_class')) )
+scores = scores.withColumn('five_point_class', F.lit('E'))
+# scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_20_score, F.lit('E')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_10_score, F.lit('D')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_1_score, F.lit('C')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_01_score, F.lit('B')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_001_score, F.lit('A')).otherwise(F.col('five_point_class')) )
 
 
 print ("Finished! Writing output to file.")
