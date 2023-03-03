@@ -27,7 +27,7 @@ However, the scripts expect a full input path for all files, in order to work. H
 > hdfs:///user/<user_name>/graph_file.txt.gz
 
 **ΝΟΤΕ:** spark is faster when it loads data from a directory containing partitioned files. Hence, it is advised to have the graph split in many 
-smaller parts (e.g., equan to the suggested number of partitions in the cluster - 7690 on openaire's IIS) and have it in a golder e.g., 
+smaller parts (e.g., equan to the suggested number of partitions in the cluster - 7680 on openaire's IIS) and have it in a golder e.g., 
 /user/<user_name>/path/to/graph_input_folder/
 
 ## Graph input
