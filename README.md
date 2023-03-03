@@ -11,10 +11,6 @@ may need to be commented out.
 When invoking any of the scripts from the command line without any arguments provided, they will output the expected input parameters and exit.
 For a quick refresher on what to pass in the command line, first try this, before delving into the details provided in the following sections.
 
-### Particular lines that may require changes:
-  * from __future__ import print_function: remove this line if the cluster is python3 compatible
-  * master_prefix = "/".join(input_file.split("/")[:5]): where applicable, this line may need to change. It determines the prefix of the output directory, based on how files in the hdfs are referenced (this is setup specific). As is, it works for calling input graphs referenced as hdfs:///user/<user_name>/<path_to_graph_file_on_hdfs>
-
 ## Openaire gateway - cluster setup
 
 On the openaire gateway to the cluster, all distributed computation infrastructures have been set up in a particular configuration.
@@ -135,6 +131,11 @@ Run the script as:
 ## Moving scripts to other clusters
   
 To run these scripts on another cluster, some lines of code may need to be changed and additional spark-specific parameters may need to be passed in the command line.
+ 
+Particular lines that may require changes:
+  * from __future__ import print_function: remove this line if the cluster is python3 compatible
+  * master_prefix = "/".join(input_file.split("/")[:5]): where applicable, this line may need to change. It determines the prefix of the output directory, based on how files in the hdfs are referenced (this is setup specific). As is, it works for calling input graphs referenced as hdfs:///user/<user_name>/<path_to_graph_file_on_hdfs>
+
     
 # Please Cite
   
