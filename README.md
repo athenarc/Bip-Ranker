@@ -128,6 +128,42 @@ Run the script as:
   
 > spark2-submit --executor-memory 7G --executor-cores 4 --driver-memory 7G AttRank.py hdfs:///user/<user_name>/<path_to_graph_file_on_hdfs> <alpha> <beta> <gamma> <exponential_rho> <current_year> <start_year_for_attention> <convergence_error> <ceckpoint_directory> 7680 <checkpoint_mode: dfs or local>
   
+## TopicClassesAndFWCI.py
+
+This script calculates topic-based impact classes and Field-Weighted Citation Impact (FWCI) metrics for scientific publications. Unlike the citation graph-based ranking scripts above, this script processes pre-computed ranking scores alongside publication-to-concept mappings to produce field-normalized metrics.
+
+The script performs the following computations:
+1. **Field-Weighted Citation Impact (FWCI)**: Normalizes citation counts by computing the ratio of actual citations to expected citations within the same field (concept), publication type, and year. Both total citations (FWCI) and 3-year citations (3y-FWCI) are calculated.
+2. **Topic-based Impact Classes**: For each research concept/topic, calculates percentile-based impact classes (C1-C5) separately for each metric (PageRank, AttRank, Citation Count, 3-year Citation Count). This provides field-normalized rankings that account for citation practices in different research areas.
+
+### Input Files
+
+The script requires two tab-separated input files:
+
+1. **Scores file** (with header): `openaire_id`, `pid`, `type`, `year`, `pagerank`, `attrank`, `cc`, `3y-cc`
+2. **Concepts file** (no header): DOI/PID, concept identifier, confidence score
+
+### Output Files
+
+The script produces output files in the specified output directory and prints threshold values to standard output:
+
+1. **Topic-based classes**: `identifier`, `concept`, `pagerank_class`, `attrank_class`, `cc_class`, `3y-cc_class` (C1-C5 for each metric)
+2. **FWCI metrics**: `FWCI.txt.gz`, `3-year_FWCI.txt.gz`, `FWCI_openaire_ids.txt.gz`, `3-year_FWCI_openaire_ids.txt.gz`
+
+Run the script as:
+> spark2-submit --executor-memory 7G --executor-cores 4 --driver-memory 7G TopicClassesAndFWCI.py --scores-file <path_to_scores_file> --concepts-file <path_to_concepts_file> --openaire-concepts-output <path_to_openaire_concepts_output> --output-dir <path_to_output_directory>
+
+### Impact Classes
+
+For each research concept and metric, papers are assigned to one of five classes:
+- **C1**: Top 0.01% (most impactful)
+- **C2**: Top 0.1%
+- **C3**: Top 1%
+- **C4**: Top 10%
+- **C5**: Rest 90%
+
+These classes are calculated separately per concept, allowing for fair comparison of papers within the same research field.
+
 ## Moving scripts to other clusters
   
 To run these scripts on another cluster, some lines of code may need to be changed and additional spark-specific parameters may need to be passed in the command line.
