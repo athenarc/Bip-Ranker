@@ -34,7 +34,7 @@ import time
 # Print output message if not run correctly
 ###########################################
 if len(sys.argv) < 2:
-	print ("\nUsage: CC.py <input_file> <(optional)num_partitions> <(optional) limit_year>\n")
+	print ("\nUsage: CC.py <input_file> <(optional)num_partitions> <(optional) prefix> <(optional) limit_year>\n")
 	sys.exit(0)
 ###########################################
 
@@ -48,7 +48,11 @@ try:
 except:
 	num_partitions = 1
 try:
-	 limit_year = int(sys.argv[3])
+	prefix = sys.argv[3] + "_"
+except:
+	prefix = "CC_"
+try:
+	 limit_year = int(sys.argv[4])
 except:
 	 limit_year = None
 	 
@@ -247,7 +251,6 @@ print ("Finished! Writing output to file...")
 
 ########################################################################################################################################################
 ## WRITE THE OUTPUT OF CC
-prefix = "CC_"
 if limit_year:
 	prefix = str(limit_year) + '-year_' + prefix
 # Write output to file
