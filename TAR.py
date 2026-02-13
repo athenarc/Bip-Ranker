@@ -281,7 +281,7 @@ top_10_offset	= int(num_nodes * 0.1)
 # ------------------------------------------------------------------------------------------------------ #
 # This code is included for small testing datasets. The percentages required may be < 1 for small datasets
 top_001_offset = 1 if top_001_offset <= 1 else top_001_offset
-top_01_offset = 1 if top_001_offset <= 1 else top_01_offset
+top_01_offset = 1 if top_01_offset <= 1 else top_01_offset
 top_1_offset = 1 if top_1_offset <= 1 else top_1_offset
 top_10_offset = 1 if top_10_offset <= 1 else top_10_offset
 # top_20_offset = 1 if top_20_offset <= 1 else top_20_offset
