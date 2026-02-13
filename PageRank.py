@@ -57,7 +57,9 @@ except:
 # Set the mode by default as local. 
 # If data is read from hdfs we switch to cluster
 mode = 'local'
-if input_file.startswith('hdfs://'):
+# Detect execution mode from input path.
+# Any URI-scheme path (hdfs://, s3a://, gs://, etc.) is treated as distributed,
+if '://' in input_file:
 	mode = 'distributed'
 	
 # Set the mode by default as dfs. 
