@@ -125,7 +125,7 @@ if mode == 'local':
 	input_data = spark.read.schema(graph_file_schema).option('delimiter', '\t').csv(input_file)
 elif mode == 'distributed':
 	print("\n\nReading input from hdfs\n\n")
-	input_data = spark.read.schema(graph_file_schema).option('delimiter', '\t').csv(input_file).repartition(num_partitions, 'paper')
+	input_data = spark.read.schema(graph_file_schema).option('delimiter', '\t').csv(input_file).repartition('paper')
 	
 # Get number of nodes (one node-record per line)
 num_nodes = float(input_data.count())
@@ -142,7 +142,7 @@ if tar_type == 'ecm':
 	print ("Alpha: " + str(alpha))
 	print ("Convergence Error: " + str(max_error))
 print ("Number of nodes: " + str(num_nodes))
-print ("Number of partitions: " + str(num_partitions) )
+#print ("Number of partitions: " + str(num_partitions) )
 print ("Checkpoint mode: " + str(checkpoint_mode))
 print ("Checkpoint dir: " + checkpoint_dir)
 print ("# ------------------------------------ #\n")
@@ -159,7 +159,7 @@ paper_years = input_data.select('paper', 'pub_year').withColumn('year_fixed', F.
 
 # We have a case of erroneous years when translating openaire IDs. 
 # We insert a year validation here (has to be in 1000-2021)
-paper_years = paper_years.select('paper', F.col('year_fixed').alias('year')).repartition(num_partitions, 'paper').cache()
+paper_years = paper_years.select('paper', F.col('year_fixed').alias('year')).repartition('paper').cache()
 
 # Get a DataFrame with pairs of <node, cited_list> (see comment above for input format) 
 # Keep only papers that DO cite other papers
@@ -167,7 +167,7 @@ outlinks = input_data.select("paper", F.split("citation_data", "\|").alias("cite
 		     .select("paper", "cited_papers", F.expr("size(cited_papers)-2").alias("cited_paper_size"), "pub_year")\
 		     .select("paper", F.expr("slice(cited_papers, 1, cited_paper_size)").alias("cited_papers"), "pub_year")\
 		     .select("paper", F.array_join("cited_papers", "|").alias("cited_papers"), "pub_year")\
-		     .select("paper", F.split("cited_papers", ",").alias("cited_papers"), "pub_year").repartition(num_partitions, "paper").cache()
+		     .select("paper", F.split("cited_papers", ",").alias("cited_papers"), "pub_year").repartition("paper").cache()
 
 print(".", end = '')
 sys.stdout.flush()
@@ -205,7 +205,7 @@ else:
 			 .groupBy('paper')\
 			 .agg(F.sum('transferred_score').alias('score'))\
 			 .join(previous_scores, 'paper', 'right_outer')\
-			 .select('paper','score','year').repartition(num_partitions, 'paper')\
+			 .select('paper','score','year').repartition('paper')\
 			 .fillna(0.0, ['score'])
 
 	previous_scores = scores.select('paper', F.col('score').alias('previous_score'), 'year')
@@ -227,7 +227,7 @@ else:
 				 .groupBy('paper')\
 				 .agg(F.sum('transferred_score').alias('running_ecm'))\
 				 .join(previous_scores, 'paper', 'right_outer')\
-				 .repartition(num_partitions, 'paper')\
+				 .repartition('paper')\
 				 .fillna(0.0, 'running_ecm')\
 				 .select('paper', 'running_ecm', 'previous_score', (F.col('running_ecm')+F.col('previous_score')).alias('ecm'), 'year')
 
@@ -267,8 +267,8 @@ print("Finished preparations... Calculating scores and classes...\n")
 
 # Time it
 start_time = time.time()
-scores		= scores.repartition(num_partitions, 'paper').cache()
-max_score 	= scores.select('score').distinct().agg({'score': 'max'}).collect()[0]['max(score)']
+scores		= scores.repartition('paper').cache()
+max_score 	= scores.agg(F.max('score')).collect()[0]['max(score)']
 print ("Got max score:" + str(max_score) + " - Took {} seconds".format(time.time() - start_time) + " to get here from initial file read (this is the first transformation)")
 
 
@@ -291,7 +291,7 @@ top_10_offset = 1 if top_10_offset <= 1 else top_10_offset
 # Time it
 start_time = time.time()
 # Calculate a running count window of scores, in order to filter out papers w/ scores lower than that of the top 20%
-distinct_scores = scores.select(F.col('score')).repartition(num_partitions, 'score').groupBy('score').count()\
+distinct_scores = scores.select(F.col('score')).repartition('score').groupBy('score').count()\
 				 .withColumn('cumulative', F.sum('count').over(Window.orderBy(F.col('score').desc())))
 distinct_scores_count = distinct_scores.count()
 print ("Calculated distinct scores num (" + str(distinct_scores_count) + "), time: {} seconds ---".format(time.time() - start_time))

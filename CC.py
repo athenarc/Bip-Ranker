@@ -99,13 +99,13 @@ if mode == 'local':
 elif mode == 'distributed':
 	print("\n\nReading input from hdfs\n\n")
 	# Use spark session with schema instead of spark context and text file (this should spead up reading the file)
-	input_data = spark.read.schema(graph_file_schema).option('delimiter', '\t').csv(input_file).repartition(num_partitions, "paper")	
+	input_data = spark.read.schema(graph_file_schema).option('delimiter', '\t').csv(input_file).repartition("paper")
 #####################################################################################################	
 # Time initialization
 initialisation_time = time.time()
 # Print out info messages about the program's parameters
 print ("Mode is: " + mode)
-print ("Num Partitions: " + str(num_partitions))
+#print ("Num Partitions: " + str(num_partitions))
 print ("Limit year: " + str(limit_year))
 print ("\n\n")
 # Initialise SPARK Data
@@ -116,51 +116,51 @@ outlinks = input_data.select('paper', F.split('citation_data', "\|").alias('cite
 		     .select('paper', 'cited_papers', F.expr('size(cited_papers)-2').alias("cited_paper_size"), 'pub_year')\
 		     .select('paper', F.expr("slice(cited_papers, 1, cited_paper_size)").alias('cited_papers'), 'pub_year')\
 		     .select('paper', F.array_join('cited_papers', '|').alias('cited_papers'), 'pub_year')\
-		     .select('paper', F.split('cited_papers', ',').alias('cited_papers'), 'pub_year').repartition(num_partitions, 'pub_year').cache()
+		     .select('paper', F.split('cited_papers', ',').alias('cited_papers'), 'pub_year').repartition('pub_year').cache()
 
 # Create a dataframe with nodes filtered based on whether they cite others or not. Here we keep those that make citations (i.e., remove dangling nodes)
 print ("Planning removal of dangling nodes...")
 outlinks_actual = outlinks.filter(outlinks['cited_papers'][0] != '0')\
-			  .select('paper', F.explode(F.col('cited_papers')).alias('cited_paper') , F.col('pub_year')).repartition(num_partitions, "paper").cache()
+			  .select('paper', F.explode(F.col('cited_papers')).alias('cited_paper') , F.col('pub_year')).repartition("paper").cache()
 
 # If offset year is given, we need to perform some filtering of citations based on pub year. Proceed by normally calculating the 3-year based CC
 if  limit_year:
 	# We now need to filter out those records where citing year - cited year >  limit_year
 	# a. join again with years, based on cited paper year - create a clone of the initial dataframe, because otherwise there will be an error due to similar column names
 	print ("Gathering years of cited papers...")
-	cited_paper_years = outlinks.select('paper', F.col('pub_year').alias('cited_paper_year')).withColumnRenamed('paper', 'cited_paper').repartition(num_partitions, 'cited_paper')
+	cited_paper_years = outlinks.select('paper', F.col('pub_year').alias('cited_paper_year')).withColumnRenamed('paper', 'cited_paper').repartition('cited_paper')
 	# Since here outlinks_actual is joined on cited paper, we need to repartition it
-	valid_citations   = outlinks_actual.repartition(num_partitions, 'cited_paper').join(cited_paper_years, outlinks_actual.cited_paper == cited_paper_years.cited_paper)\
+	valid_citations   = outlinks_actual.repartition('cited_paper').join(cited_paper_years, outlinks_actual.cited_paper == cited_paper_years.cited_paper)\
 			    .select(outlinks_actual.paper, 
 				    cited_paper_years.cited_paper, 
 				    outlinks_actual.pub_year.alias('citing_paper_year'), 
 				    cited_paper_years.cited_paper_year)\
-			    .repartition(num_partitions, 'paper')	
+			    .repartition('paper')
 					 
 	# b. Filter out those where citing paper year > cited paper year + 3
 	print ("Filtering out citations based on pub year difference...")
-	valid_citations = valid_citations.filter(valid_citations['citing_paper_year']-valid_citations['cited_paper_year'] <=  limit_year).repartition(num_partitions, 'paper').cache()
+	valid_citations = valid_citations.filter(valid_citations['citing_paper_year']-valid_citations['cited_paper_year'] <=  limit_year).repartition('paper').cache()
 # Do nothing if no limit year was specified. For uniformity reasons we set the valid citations variable to point to outlinks_actual
 else:
 	valid_citations = outlinks_actual
 
 # Group by cited_paper and get counts
 print("Preparing count of citations...")
-valid_citations = valid_citations.repartition(num_partitions, 'cited_paper').groupBy('cited_paper').count().repartition(num_partitions, 'cited_paper')
+valid_citations = valid_citations.repartition('cited_paper').groupBy('cited_paper').count().repartition('cited_paper')
 
 # Add papers which aren't cited
 print("Planning addition of dangling nodes...")
 # Join with papers that aren't cited
 valid_citations = valid_citations.join(outlinks.select('paper'), outlinks.paper == valid_citations.cited_paper, 'right_outer')\
 				.select('paper', 'count')\
-				.fillna(0).repartition(num_partitions, 'paper').cache()
+				.fillna(0).repartition('paper').cache()
 
 print ("\n# ------------------------------------ #\n")
 print("Finished planning calculations. Proceeding to calculation of scores and classes...\n")
 
 # Time it
 start_time = time.time()
-max_score  = valid_citations.select('count').repartition(num_partitions).distinct().agg({'count': 'max'}).collect()[0]['max(count)']
+max_score  = valid_citations.agg(F.max('count')).collect()[0]['max(count)']
 print ("Got max score:" + str(max_score) + " - Took {} seconds".format(time.time() - start_time) + " to get here from initial file read (this is the first transformation)")
  
 # Time it
@@ -186,7 +186,7 @@ top_10_offset = 1 if top_10_offset <= 1 else top_10_offset
 # Time it
 start_time = time.time()
 # Calculate a running count window of scores, in order to filter out papers w/ scores lower than that of the top 20%
-distinct_scores = valid_citations.select(F.col('count').alias('cc')).repartition(num_partitions, 'cc').groupBy('cc').count()\
+distinct_scores = valid_citations.select(F.col('count').alias('cc')).repartition('cc').groupBy('cc').count()\
 				 .withColumn('cumulative', F.sum('count').over(Window.orderBy(F.col('cc').desc())))
 distinct_scores_count = distinct_scores.count()
 print ("Calculated distinct scores num (" + str(distinct_scores_count) + "), time: {} seconds ---".format(time.time() - start_time))
@@ -238,7 +238,7 @@ valid_citations = valid_citations.select('paper', F.col('count').alias(column_na
 		.withColumn('normalized_' + column_name, F.lit(F.col(column_name)/float(max_score)))\
 		.withColumn('three_point_class', F.lit('C'))
 valid_citations = valid_citations.withColumn('three_point_class', F.when(F.col(column_name) >= top_1_score, F.lit('B')).otherwise(F.col('three_point_class')) )
-valid_citations = valid_citations.withColumn('three_point_class', F.when(F.col(column_name) >= top_001_score, F.lit('A')).otherwise(F.col('three_point_class')) )	
+valid_citations = valid_citations.withColumn('three_point_class', F.when(F.col(column_name) >= top_001_score, F.lit('A')).otherwise(F.col('three_point_class')) )
 valid_citations = valid_citations.select(F.regexp_replace('paper', 'comma_char', ',').alias('doi'), column_name, 'normalized_' + column_name, 'three_point_class')
 
 # Add six point class to score dataframe

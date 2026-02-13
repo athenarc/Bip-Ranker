@@ -118,7 +118,7 @@ if mode == 'local':
 	input_data = spark.read.schema(graph_file_schema).option('delimiter', '\t').csv(input_file).cache()
 elif mode == 'distributed':
 	print ("Reading input from HDFS...")
-	input_data = spark.read.schema(graph_file_schema).option('delimiter', '\t').csv(input_file).repartition(num_partitions, 'paper').cache()
+	input_data = spark.read.schema(graph_file_schema).option('delimiter', '\t').csv(input_file).repartition('paper').cache()
 	
 	
 # Get number of nodes (one node-record per line)
@@ -163,17 +163,17 @@ outlinks = input_data.select('paper', F.split('citation_data', "\|").alias('cite
 		     .select('paper', 'cited_papers', F.expr('size(cited_papers)-2').alias('cited_paper_size'), 'pub_year')\
 		     .select('paper', F.expr('slice(cited_papers, 1, cited_paper_size)').alias('cited_papers'), 'pub_year')\
 		     .select('paper', F.array_join('cited_papers', '|').alias('cited_papers'), 'pub_year')\
-		     .select('paper', F.split('cited_papers', ',').alias('cited_papers'), 'pub_year').repartition(num_partitions, 'paper').cache()
+		     .select('paper', F.split('cited_papers', ',').alias('cited_papers'), 'pub_year').repartition('paper').cache()
 
 # Create a DataFrame with nodes filtered based on whether they cite others or not
-outlinks_actual = outlinks.filter(outlinks['cited_papers'][0] != '0').repartition(num_partitions, 'paper').cache()
+outlinks_actual = outlinks.filter(outlinks['cited_papers'][0] != '0').repartition('paper').cache()
 
 # Continue intialisation message
 print(".", end = '')
 sys.stdout.flush()
 
 # Collect the dangling nodes from the data - cache it since it will be reused
-dangling_nodes = outlinks.filter(outlinks.cited_papers[0] == '0').select('paper').repartition(num_partitions, 'paper').cache()
+dangling_nodes = outlinks.filter(outlinks.cited_papers[0] == '0').select('paper').repartition('paper').cache()
 
 # Continue intialisation message
 print(".", end = '')
@@ -230,7 +230,7 @@ while error >= max_error:
 				.agg(F.sum('transferred_score').alias('transferred_score_sum'))\
 				.select('paper', (alpha * (F.col('transferred_score_sum')+dangling_sum) + (1-alpha)*random_jump_prob).alias('score'))\
 				.join(previous_scores, 'paper', 'right_outer')\
-				.repartition(num_partitions, 'paper')\
+				.repartition('paper')\
 				.fillna(uncited_node_score, ['score'])\
 				.withColumn('score_diff', F.abs( F.col('score') - F.col('previous_score') ) )
 	# We should keep the newly calculated scores in memory for further use.
@@ -259,7 +259,7 @@ while error >= max_error:
 
 	# -------------------------------- #
 	# 3. Calculate max error
-	error = scores.select('score_diff').distinct().agg({'score_diff': 'max'}).collect()[0][0] 
+	error = scores.agg(F.max('score_diff')).collect()[0][0]
 
 	# -------------------------------- #
 	# 4. Do required re-initialisations and update variables
@@ -277,7 +277,7 @@ while error >= max_error:
 print ("\n# ------------------------------------ #\n")
 print("Finished score calculations. Preparing classes and normalized scores!")
 
-scores		= scores.repartition(num_partitions, 'paper').cache()
+scores		= scores.repartition('paper').cache()
 max_score 	= scores.agg({'score': 'max'}).collect()[0]['max(score)']
 
 # Define the top ranges in number of papers
@@ -298,7 +298,7 @@ top_10_offset = 1 if top_10_offset <= 1 else top_10_offset
 # Time calculations
 start_time = time.time()
 # Calculate a running count window of scores, in order to filter out papers w/ scores lower than that of the top 20%
-distinct_scores = scores.select(F.col('score')).repartition(num_partitions, 'score').groupBy('score').count()\
+distinct_scores = scores.select(F.col('score')).repartition('score').groupBy('score').count()\
 				 .withColumn('cumulative', F.sum('count').over(Window.orderBy(F.col('score').desc())))
 distinct_scores_count = distinct_scores.count()
 print ("Calculated distinct scores num (" + str(distinct_scores_count) + "), time: {} seconds ---".format(time.time() - start_time))
