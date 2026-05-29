@@ -1,5 +1,5 @@
 # Bip-Ranker
-Spark-based Paper Ranking Scripts used in Bip! Finder and openAIRE
+Spark-based Paper Ranking Scripts used in Bip! Finder and OpenAIRE
 
 This is a collection of ranking scripts written in PySpark. 
 The collection included in this repository is tailored to run on the openaire cluster, using its gateway node for running them.
@@ -163,6 +163,18 @@ For each research concept and metric, papers are assigned to one of five classes
 - **C5**: Rest 90%
 
 These classes are calculated separately per concept, allowing for fair comparison of papers within the same research field.
+
+## Artifact indicators
+
+Scripts for artefact-oriented indicators (software and datasets) live in [`artifact_indicators/`](artifact_indicators/). They use tab-separated CSV inputs and plain Python (pandas), not Spark.
+
+See [`artifact_indicators/README.md`](artifact_indicators/README.md) for full usage, sample data, and the end-to-end pipeline.
+
+| Indicator | Script | Description |
+|-----------|--------|-------------|
+| **ICC** — Indirect Citation Count | `indirect_citations.py` | Citation counts from publications linked to each artifact |
+| **IM** — In-text Mentions | `mentions.py` | Unique papers mentioning each artifact |
+| **ACII** — Artefact Composite Impact Indicator | `acii.py` | Weighted combination of normalized ICC and IM |
 
 ## Moving scripts to other clusters
   
