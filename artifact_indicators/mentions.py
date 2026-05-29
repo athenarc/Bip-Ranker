@@ -16,8 +16,8 @@ This script counts how many papers mention each artifact by:
 **Output Files (Tab-Separated):**
 
 1. **output**: Unique artifacts file with mention count column
-   - One row per unique artifact
-   - Columns: `artifact_id`, `mention_count`, plus any other metadata columns from input
+   - Columns: `artifact_id`, `mention_count`
+   - One row per unique artifact, sorted by `mention_count` descending
 
 **Note:** All input and output files must be tab-separated (TSV format).
 
@@ -103,11 +103,11 @@ def main():
     # STEP 3: Create enriched output with unique artifacts
     print("\nSTEP 3: Creating enriched output...")
     
-    # Get unique artifacts - take first row for each artifact_id to preserve metadata
-    unique_artifacts = mentions_df.groupby('artifact_id').first().reset_index()
-    
-    # Add mention counts
-    unique_artifacts['mention_count'] = unique_artifacts['artifact_id'].map(mention_counts)
+    unique_artifacts = pd.DataFrame({
+        'artifact_id': list(mention_counts.keys()),
+        'mention_count': list(mention_counts.values())
+    })
+    unique_artifacts = unique_artifacts.sort_values('mention_count', ascending=False)
     
     # Save enriched CSV
     print(f"\nSTEP 4: Saving enriched output file...")

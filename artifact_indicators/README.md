@@ -1,79 +1,92 @@
 # Artifact Indicators Scripts
 
-This directory contains scripts for calculating citation-based indicators for artifacts (datasets and software).
+Scripts for artefact-oriented indicators introduced by ARC:
 
-## indirect_citations.py
+| Indicator | Script | Output column |
+|-----------|--------|---------------|
+| **ICC** — Indirect Citation Count | `indirect_citations.py` | `indirect_citations` |
+| **IM** — In-text Mentions | `mentions.py` | `mention_count` |
+| **ACII** — Artefact Composite Impact Indicator | `acii.py` | `acii` |
 
-Enriches artifacts with indirect citation count from related publications.
+All input and output files are tab-separated (TSV format), even when using a `.csv` extension.
 
-### Overview
-
-This script calculates indirect citation metrics:
-
-**Indirect Citations**: Citations to publications associated with artifacts via DOIs
-- Sums citation counts for each artifact's publications
-- Counts each `openaire_id` only once to avoid double-counting
-
-### Quick Start
-
-#### Installation
+## Installation
 
 ```bash
 pip install pandas
 ```
 
-#### Sample Input Data
+## indirect_citations.py (ICC)
 
-Sample tab-separated files are provided in `sample_data/` directory:
+Sums citation counts from publications linked to each artifact via DOIs. Each `openaire_id` is counted only once per artifact.
 
-- `artifacts-to-publications_sample.csv` - Artifact publications with DOIs
-- `publications_sample.csv` - Paper information with citation counts
+**Inputs:**
+- `artifacts-to-publications` — columns: `artifact_id`, `doi`
+- `publications` — columns: `doi`, `paper_id`, `openaire_id`, `citation_count`
 
-**Note:** All files are tab-separated (TSV format), even though they use `.csv` extension.
-
-#### Quick Run
-
-From the `artifact_indicators` directory:
+**Output:** `artifact_id`, `indirect_citations`
 
 ```bash
 python indirect_citations.py \
     --artifacts-to-publications sample_data/artifacts-to-publications_sample.csv \
     --publications sample_data/publications_sample.csv \
-    --output indirect_citations_output.csv
+    --output icc_output.csv
 ```
 
-This will create:
-- `enriched_output.csv` - Enriched artifacts with citations (tab-separated)
+## mentions.py (IM)
 
-## mentions.py
+Counts unique papers that mention each artifact.
 
-Aggregates mention counts for artifacts (software and datasets) from tab-separated files (TSV format).
+**Input:**
+- `artifacts-to-mentions` — columns: `artifact_id`, `paper_id`
 
-### Overview
-
-This script counts how many papers mention each artifact:
-
-**Mentions**: Papers that mention artifacts
-- Counts unique papers mentioning each artifact
-- Outputs mention count per artifact
-
-### Quick Start
-
-#### Sample Data
-
-Sample tab-separated file is provided in `sample_data/` directory:
-
-- `artifacts-to-mentions_sample.csv` - Papers mentioning artifacts
-
-#### Quick Run
-
-From the `artifact_indicators` directory:
+**Output:** `artifact_id`, `mention_count`
 
 ```bash
 python mentions.py \
     --artifacts-to-mentions sample_data/artifacts-to-mentions_sample.csv \
-    --output mentions_output.csv
+    --output im_output.csv
 ```
 
-This will create:
-- `enriched_output.csv` - Enriched artifacts with mention counts (tab-separated)
+## acii.py (ACII)
+
+Combines normalized ICC and IM with configurable weights (default 0.5 / 0.5):
+
+```
+norm_icc = (icc - min) / (max - min)
+norm_im  = (im  - min) / (max - min)
+acii     = weight_icc * norm_icc + weight_im * norm_im
+```
+
+**Inputs:**
+- `--icc` — output from `indirect_citations.py`
+- `--im` — output from `mentions.py`
+
+**Output:** `artifact_id`, `indirect_citations`, `mention_count`, `acii`
+
+```bash
+python acii.py \
+    --icc icc_output.csv \
+    --im im_output.csv \
+    --weight-icc 0.5 \
+    --weight-im 0.5 \
+    --output acii_output.csv
+```
+
+### Full pipeline (sample data)
+
+```bash
+python indirect_citations.py \
+    --artifacts-to-publications sample_data/artifacts-to-publications_sample.csv \
+    --publications sample_data/publications_sample.csv \
+    --output icc_output.csv
+
+python mentions.py \
+    --artifacts-to-mentions sample_data/artifacts-to-mentions_sample.csv \
+    --output im_output.csv
+
+python acii.py \
+    --icc icc_output.csv \
+    --im im_output.csv \
+    --output acii_output.csv
+```

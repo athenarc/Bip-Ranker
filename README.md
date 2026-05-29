@@ -189,3 +189,6 @@ For AttRank please cite:
  
 > Kanellos I, Vergoulis T, Sacharidis D, Dalamagas T, Vassiliou Y. Ranking papers by their short-term scientific impact. In2021 IEEE 37th International Conference on Data Engineering (ICDE) 2021 Apr 19 (pp. 1997-2002). IEEE.
 
+## Acknowledgments
+
+This work was supported by the European Union's Horizon Europe research and innovation programme under grant agreement No. 101058573 ([SciLake](https://scilake.eu/)).
