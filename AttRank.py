@@ -147,11 +147,9 @@ sys.stdout.flush()
 # Initialise SPARK Data
 
 # Get a DataFrame with pairs of <node, score>.
-# Recall the input format to understand what the following map function does:
-# <paper> <tab> <cited_papers|num_cited_papers|score> <tab> <previous_score> <tab> <publication_year>
-scores = input_data.select('paper', F.split('citation_data', "\|").alias('citation_data') )\
-		   .select('paper', F.expr('element_at(citation_data, size(citation_data))').alias('score')).cache()
-		   #.select('paper', F.element_at(F.col('citation_data'), F.expr('size(citation_data)') ).alias('score') ).cache()
+# Input format:
+# <paper> <tab> <cited_papers|num_cited_papers> <tab> <initial_score> <tab> <publication_year>
+scores = input_data.select('paper', F.col('prev_score').alias('score')).cache()
 
 # Duplicate scores to keep track of scores in consecutive iterations
 previous_scores	= scores.select('paper',F.col('score').alias('previous_score'))
@@ -162,7 +160,7 @@ sys.stdout.flush()
 # ----------------- #
 # Get a dataframe of doi - cited list
 outlinks = input_data.select('paper', F.split('citation_data', "\|").alias('cited_papers'), 'pub_year')\
-		     .select('paper', 'cited_papers', F.expr('size(cited_papers)-2').alias('cited_paper_size'), 'pub_year')\
+		     .select('paper', 'cited_papers', F.expr('size(cited_papers)-1').alias('cited_paper_size'), 'pub_year')\
 		     .select('paper', F.expr('slice(cited_papers, 1, cited_paper_size)').alias('cited_papers'), 'pub_year')\
 		     .select('paper', F.array_join('cited_papers', '|').alias('cited_papers'), 'pub_year')\
 		     .select('paper', F.split('cited_papers', ',').alias('cited_papers'), 'pub_year').repartition('paper').cache()

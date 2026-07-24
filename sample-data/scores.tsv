@@ -1,0 +1,13 @@
+openaire_id	pid	type	year	pagerank	attrank	cc	3y-cc
+oa_001	10.1000/paper_a	publication	2015	0.22	0.18	7	3
+oa_002	10.1000/paper_b	publication	2016	0.15	0.16	4	2
+oa_003	10.1000/paper_c	publication	2017	0.14	0.17	3	2
+oa_004	10.1000/paper_d	publication	2018	0.11	0.14	2	2
+oa_005	10.1000/paper_e	publication	2019	0.10	0.15	1	1
+oa_006	10.1000/paper_f	publication	2020	0.08	0.12	0	0
+oa_007	10.1000/paper_g	publication	2018	0.12	0.13	2	1
+oa_008	10.1000/paper_h	publication	2019	0.08	0.11	0	0
+oa_009	10.1000/paper_i	publication	2016	0.09	0.10	1	1
+oa_010	10.1000/paper_j	publication	2017	0.07	0.09	1	0
+oa_011	10.1000/paper_k	publication	2018	0.06	0.08	0	0
+oa_012	10.1000/paper_l	publication	2019	0.05	0.07	0	0

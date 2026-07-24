@@ -112,8 +112,9 @@ print ("\n\n")
 print("Planning citation data calculation...")
 # ------------------ #
 # Create the outlinks by selecting and splitting the appropriate fields - split on "|" character and remove last two fields. Then join again on "|" because it may be part of a doi
+# Input citation payload: <cited_papers|num_cited_papers> (score is the separate third column)
 outlinks = input_data.select('paper', F.split('citation_data', "\|").alias('cited_papers'), 'pub_year')\
-		     .select('paper', 'cited_papers', F.expr('size(cited_papers)-2').alias("cited_paper_size"), 'pub_year')\
+		     .select('paper', 'cited_papers', F.expr('size(cited_papers)-1').alias("cited_paper_size"), 'pub_year')\
 		     .select('paper', F.expr("slice(cited_papers, 1, cited_paper_size)").alias('cited_papers'), 'pub_year')\
 		     .select('paper', F.array_join('cited_papers', '|').alias('cited_papers'), 'pub_year')\
 		     .select('paper', F.split('cited_papers', ',').alias('cited_papers'), 'pub_year').repartition('pub_year').cache()

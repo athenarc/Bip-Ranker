@@ -1,0 +1,3 @@
+# Python dependencies for the root ranking scripts (PySpark).
+# Java 8 or 11+ must also be installed and available on PATH.
+pyspark>=3.3.0,<3.6.0

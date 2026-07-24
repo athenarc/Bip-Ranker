@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+sample-data/output/**
+!sample-data/output/.gitkeep
+sample-data/checkpoints/**
+!sample-data/checkpoints/.gitkeep
+PR_*/
+CC_*/
+*_CC_*/
+RAM_*/
+ECM_*/
+AR_*/
+AttRank_*/

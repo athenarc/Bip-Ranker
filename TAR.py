@@ -153,8 +153,8 @@ sys.stdout.flush()
 # Initialise SPARK Data
 
 # Get a DataFrame with pairs of <node, year>.
-# Recall the input format to understand what the following map function does:
-# <paper> <tab> <cited_papers|num_cited_papers|score> <tab> <previous_score> <tab> <publication_year>
+# Input format:
+# <paper> <tab> <cited_papers|num_cited_papers> <tab> <initial_score> <tab> <publication_year>
 paper_years = input_data.select('paper', 'pub_year').withColumn('year_fixed', F.when( (F.col('pub_year').cast(IntegerType()) < 1000) | (F.col('pub_year').cast(IntegerType()) > int(current_year)) | (F.col('pub_year') == "\\N"), 0).otherwise(F.col('pub_year')))
 
 # We have a case of erroneous years when translating openaire IDs. 
@@ -164,7 +164,7 @@ paper_years = paper_years.select('paper', F.col('year_fixed').alias('year')).rep
 # Get a DataFrame with pairs of <node, cited_list> (see comment above for input format) 
 # Keep only papers that DO cite other papers
 outlinks = input_data.select("paper", F.split("citation_data", "\|").alias("cited_papers"), "pub_year")\
-		     .select("paper", "cited_papers", F.expr("size(cited_papers)-2").alias("cited_paper_size"), "pub_year")\
+		     .select("paper", "cited_papers", F.expr("size(cited_papers)-1").alias("cited_paper_size"), "pub_year")\
 		     .select("paper", F.expr("slice(cited_papers, 1, cited_paper_size)").alias("cited_papers"), "pub_year")\
 		     .select("paper", F.array_join("cited_papers", "|").alias("cited_papers"), "pub_year")\
 		     .select("paper", F.split("cited_papers", ",").alias("cited_papers"), "pub_year").repartition("paper").cache()
@@ -175,10 +175,7 @@ sys.stdout.flush()
 # If we do ECM calculations, we need to additionally initialise
 # TODO: write this
 if tar_type == 'ecm':
-	scores = input_data.select('paper', F.split('citation_data', "\|").alias('citation_data'), F.col('pub_year').alias('year') )\
-			   .select('paper', F.expr('element_at(citation_data, size(citation_data))').alias('score')).cache()
-			   #.select('paper', F.element_at("citation_data", F.expr("size(citation_data)") ).alias('score'), 'year' ).cache()
-			   
+	scores = input_data.select('paper', F.col('prev_score').alias('score')).cache()
 	previous_scores = scores.select('paper', F.col('score').alias('previous_score'))
 ###########################################################
 # Continue intialisation message
