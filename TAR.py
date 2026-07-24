@@ -173,10 +173,10 @@ print(".", end = '')
 sys.stdout.flush()
 
 # If we do ECM calculations, we need to additionally initialise
-# TODO: write this
 if tar_type == 'ecm':
 	scores = input_data.select('paper', F.col('prev_score').alias('score')).cache()
-	previous_scores = scores.select('paper', F.col('score').alias('previous_score'))
+	previous_scores = scores.join(paper_years, 'paper')\
+				.select('paper', F.col('score').alias('previous_score'), 'year')
 ###########################################################
 # Continue intialisation message
 print(". Took: %s seconds!" % (time.time()-initialisation_time))
@@ -197,12 +197,13 @@ if tar_type == 'ram':
 else:
 
 	# Calculate the initial score - since in each iteration the we must use the previous score we do the initial step separately
-	scores = outlinks.join(scores, 'paper')\
-			 .select(F.explode(outlinks.cited_papers).alias('paper'), (alpha*(gamma ** (current_year - F.col('year')))).alias('transferred_score'), 'year')\
+	# Join paper_years so citing-paper year is available for the time-decay term (outlinks only has pub_year).
+	scores = outlinks.join(paper_years, 'paper').join(scores, 'paper')\
+			 .select(F.explode(outlinks.cited_papers).alias('paper'), (alpha*(gamma ** (current_year - F.col('year')))).alias('transferred_score'))\
 			 .groupBy('paper')\
 			 .agg(F.sum('transferred_score').alias('score'))\
 			 .join(previous_scores, 'paper', 'right_outer')\
-			 .select('paper','score','year').repartition('paper')\
+			 .select('paper', 'score', 'year').repartition('paper')\
 			 .fillna(0.0, ['score'])
 
 	previous_scores = scores.select('paper', F.col('score').alias('previous_score'), 'year')

@@ -55,7 +55,7 @@ paper_id <tab> referenced_papers|num_references <tab> initial_score <tab> public
 - `initial_score`: starting score used by iterative ranking methods (PageRank, AttRank, TAR/ECM)
 - Paper IDs must not contain `,` or tab characters (replace them before ranking if needed)
 
-A small example network is provided in [`sample-data/citation_graph.tsv`](sample-data/citation_graph.tsv). See [`sample-data/README.md`](sample-data/README.md) for the schema of the Topic/FWCI inputs.
+A 50-paper example network is provided in [`sample-data/citation_graph.tsv`](sample-data/citation_graph.tsv). See [`sample-data/README.md`](sample-data/README.md) for the schema of the Topic/FWCI inputs.
 
 ---
 
@@ -67,7 +67,7 @@ After installing dependencies in a venv, run all root scripts on the sample netw
 python run_demo.py
 ```
 
-Results are written under `sample-data/output/`. Optional filters:
+Results are written under `sample-data/output/`. Before topic/FWCI, the demo joins PageRank, AttRank, CC, and 3-year CC into `sample-data/output/scores.tsv`. Optional filters:
 
 ```bash
 python run_demo.py --only cc pagerank
@@ -120,7 +120,7 @@ Use `local` as the checkpoint mode for small graphs. Output directory: `PR_*_loc
 ### AttRank (`AttRank.py`)
 
 ```bash
-python "$REPO/AttRank.py" "$GRAPH" 0.2 0.5 0.3 0.6 2020 2018 1e-3 "$CKPT" 1 local
+python "$REPO/AttRank.py" "$GRAPH" 0.2 0.5 0.3 0.6 2017 2014 1e-3 "$CKPT" 1 local
 ```
 
 Arguments: `<input> <alpha> <beta> <gamma> <exponential_rho> <current_year> <start_year_for_attention> <convergence_error> <checkpoint_dir> [num_partitions] [checkpoint_mode]`.
@@ -128,13 +128,13 @@ Arguments: `<input> <alpha> <beta> <gamma> <exponential_rho> <current_year> <sta
 ### Time-aware ranking — RAM (`TAR.py`)
 
 ```bash
-python "$REPO/TAR.py" "$GRAPH" 0.6 2020 RAM 1 "$CKPT" local
+python "$REPO/TAR.py" "$GRAPH" 0.6 2017 RAM 1 "$CKPT" local
 ```
 
 ### Time-aware ranking — ECM (`TAR.py`)
 
 ```bash
-python "$REPO/TAR.py" "$GRAPH" 0.6 2020 ECM 1 "$CKPT" local 0.5 1e-3
+python "$REPO/TAR.py" "$GRAPH" 0.6 2017 ECM 1 "$CKPT" local 0.5 1e-3
 ```
 
 ### Topic classes and FWCI (`TopicClassesAndFWCI.py`)
@@ -143,11 +143,17 @@ Uses score and concept tables (not the citation graph):
 
 ```bash
 python "$REPO/TopicClassesAndFWCI.py" \
-  --scores-file "$REPO/sample-data/scores.tsv" \
+  --scores-file "$OUT/scores.tsv" \
   --concepts-file "$REPO/sample-data/concepts.tsv" \
-  --openaire-concepts-output "$OUT/openaire_concepts" \
   --output-dir "$OUT"
 ```
+
+Build `scores.tsv` first by joining indicator outputs (as `run_demo.py` does), or provide an equivalent table with columns `pid`, `type`, `year`, `pagerank`, `attrank`, `cc`, `3y-cc`.
+
+Writes under `--output-dir`:
+- `topics/` — topic-based impact classes
+- `FWCI/` — field-weighted citation impact
+- `3-year_FWCI/` — 3-year FWCI
 
 ---
 
