@@ -161,7 +161,7 @@ Writes under `--output-dir`:
 
 ### Output of ranking scripts
 
-`PageRank.py`, `AttRank.py`, `CC.py`, and `TAR.py` write tab-separated results with score, normalized score, and impact classes. Global ranking scripts assign five-point classes based on score percentiles (top 0.01%, 0.1%, 1%, 10%, and the remaining 90%). Thresholds are also printed to stdout.
+`PageRank.py`, `AttRank.py`, `CC.py`, and `TAR.py` write tab-separated results with score, normalized score, and impact classes. Global ranking scripts assign five-point classes **C1–C5** based on score percentiles (top 0.01%, 0.1%, 1%, 10%, and the remaining 90%). Thresholds are also printed to stdout.
 
 ### Checkpointing
 

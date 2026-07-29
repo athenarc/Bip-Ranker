@@ -326,21 +326,17 @@ print ("0.1%\t" + str(top_01_score))
 print ("0.01%\t" + str(top_001_score))
 print ("\n\n")
 # ---------------------------------------------- #
-# Add 3-scale classes to score dataframe
+# Add normalized score and five-point impact class
 scores = scores.select('paper', F.col('score').alias('ram'))\
-		.withColumn('normalized_ram', F.lit(F.col('ram')/float(max_score)))\
-		.withColumn('three_point_class', F.lit('C'))
-scores = scores.withColumn('three_point_class', F.when(scores.ram >= top_1_score, F.lit('B')).otherwise(F.col('three_point_class')) )
-scores = scores.withColumn('three_point_class', F.when(scores.ram >= top_001_score, F.lit('A')).otherwise(F.col('three_point_class')) )	
-scores = scores.select(F.regexp_replace('paper', 'comma_char', ',').alias('doi'), 'ram', 'normalized_ram', 'three_point_class')
+		.withColumn('normalized_ram', F.lit(F.col('ram')/float(max_score)))
+scores = scores.select(F.regexp_replace('paper', 'comma_char', ',').alias('doi'), 'ram', 'normalized_ram')
 
-# Add six point class to score dataframe
-scores = scores.withColumn('five_point_class', F.lit('E'))
+scores = scores.withColumn('five_point_class', F.lit('C5'))
 # scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_20_score, F.lit('E')).otherwise(F.col('five_point_class')) )
-scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_10_score, F.lit('D')).otherwise(F.col('five_point_class')) )
-scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_1_score, F.lit('C')).otherwise(F.col('five_point_class')) )
-scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_01_score, F.lit('B')).otherwise(F.col('five_point_class')) )
-scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_001_score, F.lit('A')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_10_score, F.lit('C4')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_1_score, F.lit('C3')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_01_score, F.lit('C2')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_001_score, F.lit('C1')).otherwise(F.col('five_point_class')) )
 
 
 print ("Finished! Writing output to file.")
