@@ -159,6 +159,88 @@ Writes under `--output-dir`:
 
 ## Script reference
 
+Invoking a ranking script with too few arguments prints its usage line and exits. Optional arguments are shown in `[brackets]`; defaults are noted below.
+
+### `CC.py`
+
+```text
+CC.py <input_file> [num_partitions] [prefix] [limit_year]
+```
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `input_file` | yes | Citation graph path |
+| `num_partitions` | no | Spark partitions (default: `1`) |
+| `prefix` | no | Output filename prefix (default: `CC`; use e.g. `3y` for *n*-year impulse) |
+| `limit_year` | no | If set, count only citations within this many years of the cited paper’s publication year |
+
+### `PageRank.py`
+
+```text
+PageRank.py <input_file> <alpha> <convergence_error> <checkpoint_dir> [num_partitions] [checkpoint_mode]
+```
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `input_file` | yes | Citation graph path |
+| `alpha` | yes | Damping factor (e.g. `0.85`) |
+| `convergence_error` | yes | Iteration stop threshold (e.g. `1e-3`) |
+| `checkpoint_dir` | yes | Directory for Spark checkpoints |
+| `num_partitions` | no | Spark partitions (default: `1`) |
+| `checkpoint_mode` | no | `local` or `dfs` (default: `dfs`) |
+
+### `AttRank.py`
+
+```text
+AttRank.py <input_file> <alpha> <beta> <gamma> <exponential_factor> <current_year> <start_year> <convergence_error> <checkpoint_dir> [num_partitions] [checkpoint_mode]
+```
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `input_file` | yes | Citation graph path |
+| `alpha` | yes | Weight on preferential-attachment / popularity component |
+| `beta` | yes | Weight on recency / attention component |
+| `gamma` | yes | Weight on random-jump component (`alpha + beta + gamma` should sum to 1) |
+| `exponential_factor` | yes | Exponential decay parameter for attention (`ρ`) |
+| `current_year` | yes | Reference year for recency |
+| `start_year` | yes | Earliest year used when building the attention distribution |
+| `convergence_error` | yes | Iteration stop threshold |
+| `checkpoint_dir` | yes | Directory for Spark checkpoints |
+| `num_partitions` | no | Spark partitions (default: `1`) |
+| `checkpoint_mode` | no | `local` or `dfs` (default: `dfs`) |
+
+### `TAR.py`
+
+```text
+TAR.py <input_file> <gamma> <current_year> <RAM|ECM> <num_partitions> <checkpoint_dir> [checkpoint_mode] [alpha] [max_error]
+```
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `input_file` | yes | Citation graph path |
+| `gamma` | yes | Time-decay parameter |
+| `current_year` | yes | Reference year |
+| `RAM` or `ECM` | yes | Ranking mode (`RAM` or `ECM`; invalid values fall back to `RAM`) |
+| `num_partitions` | yes | Spark partitions |
+| `checkpoint_dir` | yes | Directory for Spark checkpoints |
+| `checkpoint_mode` | no | `local` or `dfs` (default: `dfs`) |
+| `alpha` | ECM only | Damping / mixing parameter for ECM |
+| `max_error` | ECM only | Convergence threshold for ECM |
+
+For ECM, both `alpha` and `max_error` are required after `checkpoint_mode`.
+
+### `TopicClassesAndFWCI.py`
+
+```text
+TopicClassesAndFWCI.py --scores-file <path> --concepts-file <path> --output-dir <dir>
+```
+
+| Flag | Description |
+|------|-------------|
+| `--scores-file` | Tab-separated scores with header: `pid`, `type`, `year`, `pagerank`, `attrank`, `cc`, `3y-cc` |
+| `--concepts-file` | Tab-separated concept map (no header): `pid`, `concept`, `confidence` |
+| `--output-dir` | Directory for `topics/`, `FWCI/`, and `3-year_FWCI/` |
+
 ### Output of ranking scripts
 
 `PageRank.py`, `AttRank.py`, `CC.py`, and `TAR.py` write tab-separated results with score, normalized score, and impact classes. Global ranking scripts assign five-point classes **C1–C5** based on score percentiles (top 0.01%, 0.1%, 1%, 10%, and the remaining 90%). Thresholds are also printed to stdout.
