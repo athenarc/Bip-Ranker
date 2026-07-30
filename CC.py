@@ -13,7 +13,7 @@
 # We perform an aggregation of 1's (i.e. 1 citation) for all records where citing_paper_year - cited_paper_year <= 3.
 
 # After calculating the citation counts we also normalize the scores by dividing each score by the maximum score calculated.
-# Further we add indicators of three and six classed based on the top 20% 10% 1% 0.1% 0.01% or the remaining 80%
+# Further we add five-point impact classes based on the top 0.01%, 0.1%, 1%, 10%, or the remaining 90%.
 
 #---------- Imports ------------- #
 import sys
@@ -112,8 +112,9 @@ print ("\n\n")
 print("Planning citation data calculation...")
 # ------------------ #
 # Create the outlinks by selecting and splitting the appropriate fields - split on "|" character and remove last two fields. Then join again on "|" because it may be part of a doi
+# Input citation payload: <cited_papers|num_cited_papers> (score is the separate third column)
 outlinks = input_data.select('paper', F.split('citation_data', "\|").alias('cited_papers'), 'pub_year')\
-		     .select('paper', 'cited_papers', F.expr('size(cited_papers)-2').alias("cited_paper_size"), 'pub_year')\
+		     .select('paper', 'cited_papers', F.expr('size(cited_papers)-1').alias("cited_paper_size"), 'pub_year')\
 		     .select('paper', F.expr("slice(cited_papers, 1, cited_paper_size)").alias('cited_papers'), 'pub_year')\
 		     .select('paper', F.array_join('cited_papers', '|').alias('cited_papers'), 'pub_year')\
 		     .select('paper', F.split('cited_papers', ',').alias('cited_papers'), 'pub_year').repartition('pub_year').cache()
@@ -233,21 +234,17 @@ column_name = 'cc'
 if limit_year:
 	column_name = str(limit_year) + '-cc'
 
-# Add 3-scale classes to score dataframe
+# Add normalized score and five-point impact class
 valid_citations = valid_citations.select('paper', F.col('count').alias(column_name))\
-		.withColumn('normalized_' + column_name, F.lit(F.col(column_name)/float(max_score)))\
-		.withColumn('three_point_class', F.lit('C'))
-valid_citations = valid_citations.withColumn('three_point_class', F.when(F.col(column_name) >= top_1_score, F.lit('B')).otherwise(F.col('three_point_class')) )
-valid_citations = valid_citations.withColumn('three_point_class', F.when(F.col(column_name) >= top_001_score, F.lit('A')).otherwise(F.col('three_point_class')) )
-valid_citations = valid_citations.select(F.regexp_replace('paper', 'comma_char', ',').alias('doi'), column_name, 'normalized_' + column_name, 'three_point_class')
+		.withColumn('normalized_' + column_name, F.lit(F.col(column_name)/float(max_score)))
+valid_citations = valid_citations.select(F.regexp_replace('paper', 'comma_char', ',').alias('doi'), column_name, 'normalized_' + column_name)
 
-# Add six point class to score dataframe
-valid_citations = valid_citations.withColumn('five_point_class', F.lit('E'))
+valid_citations = valid_citations.withColumn('five_point_class', F.lit('C5'))
 # valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_20_score, F.lit('E')).otherwise(F.col('five_point_class')) )
-valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_10_score, F.lit('D')).otherwise(F.col('five_point_class')) )
-valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_1_score, F.lit('C')).otherwise(F.col('five_point_class')) )
-valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_01_score, F.lit('B')).otherwise(F.col('five_point_class')) )
-valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_001_score, F.lit('A')).otherwise(F.col('five_point_class')) )
+valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_10_score, F.lit('C4')).otherwise(F.col('five_point_class')) )
+valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_1_score, F.lit('C3')).otherwise(F.col('five_point_class')) )
+valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_01_score, F.lit('C2')).otherwise(F.col('five_point_class')) )
+valid_citations = valid_citations.withColumn('five_point_class', F.when(F.col(column_name) >= top_001_score, F.lit('C1')).otherwise(F.col('five_point_class')) )
 
 
 print ("Finished! Writing output to file...")

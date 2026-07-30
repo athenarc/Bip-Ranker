@@ -153,8 +153,8 @@ sys.stdout.flush()
 # Initialise SPARK Data
 
 # Get a DataFrame with pairs of <node, year>.
-# Recall the input format to understand what the following map function does:
-# <paper> <tab> <cited_papers|num_cited_papers|score> <tab> <previous_score> <tab> <publication_year>
+# Input format:
+# <paper> <tab> <cited_papers|num_cited_papers> <tab> <initial_score> <tab> <publication_year>
 paper_years = input_data.select('paper', 'pub_year').withColumn('year_fixed', F.when( (F.col('pub_year').cast(IntegerType()) < 1000) | (F.col('pub_year').cast(IntegerType()) > int(current_year)) | (F.col('pub_year') == "\\N"), 0).otherwise(F.col('pub_year')))
 
 # We have a case of erroneous years when translating openaire IDs. 
@@ -164,7 +164,7 @@ paper_years = paper_years.select('paper', F.col('year_fixed').alias('year')).rep
 # Get a DataFrame with pairs of <node, cited_list> (see comment above for input format) 
 # Keep only papers that DO cite other papers
 outlinks = input_data.select("paper", F.split("citation_data", "\|").alias("cited_papers"), "pub_year")\
-		     .select("paper", "cited_papers", F.expr("size(cited_papers)-2").alias("cited_paper_size"), "pub_year")\
+		     .select("paper", "cited_papers", F.expr("size(cited_papers)-1").alias("cited_paper_size"), "pub_year")\
 		     .select("paper", F.expr("slice(cited_papers, 1, cited_paper_size)").alias("cited_papers"), "pub_year")\
 		     .select("paper", F.array_join("cited_papers", "|").alias("cited_papers"), "pub_year")\
 		     .select("paper", F.split("cited_papers", ",").alias("cited_papers"), "pub_year").repartition("paper").cache()
@@ -173,13 +173,10 @@ print(".", end = '')
 sys.stdout.flush()
 
 # If we do ECM calculations, we need to additionally initialise
-# TODO: write this
 if tar_type == 'ecm':
-	scores = input_data.select('paper', F.split('citation_data', "\|").alias('citation_data'), F.col('pub_year').alias('year') )\
-			   .select('paper', F.expr('element_at(citation_data, size(citation_data))').alias('score')).cache()
-			   #.select('paper', F.element_at("citation_data", F.expr("size(citation_data)") ).alias('score'), 'year' ).cache()
-			   
-	previous_scores = scores.select('paper', F.col('score').alias('previous_score'))
+	scores = input_data.select('paper', F.col('prev_score').alias('score')).cache()
+	previous_scores = scores.join(paper_years, 'paper')\
+				.select('paper', F.col('score').alias('previous_score'), 'year')
 ###########################################################
 # Continue intialisation message
 print(". Took: %s seconds!" % (time.time()-initialisation_time))
@@ -200,12 +197,13 @@ if tar_type == 'ram':
 else:
 
 	# Calculate the initial score - since in each iteration the we must use the previous score we do the initial step separately
-	scores = outlinks.join(scores, 'paper')\
-			 .select(F.explode(outlinks.cited_papers).alias('paper'), (alpha*(gamma ** (current_year - F.col('year')))).alias('transferred_score'), 'year')\
+	# Join paper_years so citing-paper year is available for the time-decay term (outlinks only has pub_year).
+	scores = outlinks.join(paper_years, 'paper').join(scores, 'paper')\
+			 .select(F.explode(outlinks.cited_papers).alias('paper'), (alpha*(gamma ** (current_year - F.col('year')))).alias('transferred_score'))\
 			 .groupBy('paper')\
 			 .agg(F.sum('transferred_score').alias('score'))\
 			 .join(previous_scores, 'paper', 'right_outer')\
-			 .select('paper','score','year').repartition('paper')\
+			 .select('paper', 'score', 'year').repartition('paper')\
 			 .fillna(0.0, ['score'])
 
 	previous_scores = scores.select('paper', F.col('score').alias('previous_score'), 'year')
@@ -328,21 +326,17 @@ print ("0.1%\t" + str(top_01_score))
 print ("0.01%\t" + str(top_001_score))
 print ("\n\n")
 # ---------------------------------------------- #
-# Add 3-scale classes to score dataframe
+# Add normalized score and five-point impact class
 scores = scores.select('paper', F.col('score').alias('ram'))\
-		.withColumn('normalized_ram', F.lit(F.col('ram')/float(max_score)))\
-		.withColumn('three_point_class', F.lit('C'))
-scores = scores.withColumn('three_point_class', F.when(scores.ram >= top_1_score, F.lit('B')).otherwise(F.col('three_point_class')) )
-scores = scores.withColumn('three_point_class', F.when(scores.ram >= top_001_score, F.lit('A')).otherwise(F.col('three_point_class')) )	
-scores = scores.select(F.regexp_replace('paper', 'comma_char', ',').alias('doi'), 'ram', 'normalized_ram', 'three_point_class')
+		.withColumn('normalized_ram', F.lit(F.col('ram')/float(max_score)))
+scores = scores.select(F.regexp_replace('paper', 'comma_char', ',').alias('doi'), 'ram', 'normalized_ram')
 
-# Add six point class to score dataframe
-scores = scores.withColumn('five_point_class', F.lit('E'))
+scores = scores.withColumn('five_point_class', F.lit('C5'))
 # scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_20_score, F.lit('E')).otherwise(F.col('five_point_class')) )
-scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_10_score, F.lit('D')).otherwise(F.col('five_point_class')) )
-scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_1_score, F.lit('C')).otherwise(F.col('five_point_class')) )
-scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_01_score, F.lit('B')).otherwise(F.col('five_point_class')) )
-scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_001_score, F.lit('A')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_10_score, F.lit('C4')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_1_score, F.lit('C3')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_01_score, F.lit('C2')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.ram >= top_001_score, F.lit('C1')).otherwise(F.col('five_point_class')) )
 
 
 print ("Finished! Writing output to file.")

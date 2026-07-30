@@ -28,23 +28,19 @@ logger = logging.getLogger(__name__)
 parser = argparse.ArgumentParser(description='Calculate BIP topic-based impact classes and FWCI metrics')
 parser.add_argument('--scores-file', 
                     default='/tmp/schatz/bip_metadata/output/doi_to_scores.csv',
-                    help='Input file with publication scores (openaire_id, pid, type, year, pagerank, attrank, cc, 3y-cc)')
+                    help='Input file with publication scores (pid, type, year, pagerank, attrank, cc, 3y-cc)')
 parser.add_argument('--concepts-file',
                     default='/tmp/schatz/bip_metadata/doi_to_concept_id_score.csv',
-                    help='Input file with DOI to concept mappings')
-parser.add_argument('--openaire-concepts-output',
-                    default='/tmp/schatz/bip_metadata/openaire_id_to_concept_id_score.csv',
-                    help='Output file for OpenAIRE ID to concept mappings')
+                    help='Input file with publication id to concept mappings (pid, concept, confidence)')
 parser.add_argument('--output-dir',
                     default='/tmp/schatz/bip_metadata/output/',
-                    help='Output directory for all generated files')
+                    help='Output directory for topic classes and FWCI files')
 
 args = parser.parse_args()
 
 # File paths from arguments
 scores_file = args.scores_file
 concepts_file = args.concepts_file
-openaire_concepts_output_file = args.openaire_concepts_output
 output_dir = args.output_dir if args.output_dir.endswith('/') else args.output_dir + '/'
 
 # Initialize Spark session
@@ -56,10 +52,9 @@ log4j.LogManager.getRootLogger().setLevel(log4j.Level.WARN)
 # DATA LOADING AND PREPARATION
 # ============================================================================
 
-# Read scores (openaire_id, pid, type, year, pagerank, attrank, cc, 3y-cc)
+# Read scores (pid, type, year, pagerank, attrank, cc, 3y-cc)
 scores_raw = spark.read.options(header='True', inferSchema='True', delimiter='\t').csv(scores_file)
 scores_raw = scores_raw.select(
-    F.col('openaire_id').cast(StringType()),
     F.col('pid').cast(StringType()),
     F.col('type').cast(StringType()),
     F.col('year').cast(StringType()),
@@ -69,11 +64,8 @@ scores_raw = scores_raw.select(
     F.col('3y-cc').cast(DoubleType())
 )
 
-# Mapping between openaire_id and DOI (pid)
-openaire_to_pid = scores_raw.select('openaire_id', 'pid').cache()
-
-# Aggregate metrics to openaire_id level (assumption: all records for a given openaire_id have the same metrics)
-scores = scores_raw.groupBy('openaire_id').agg(
+# Aggregate metrics to pid level (assumption: all records for a given pid have the same metrics)
+scores = scores_raw.groupBy('pid').agg(
     F.max('pagerank').alias('pagerank'),
     F.max('attrank').alias('attrank'),
     F.max('cc').alias('cc'),
@@ -82,29 +74,24 @@ scores = scores_raw.groupBy('openaire_id').agg(
     F.first('year').alias('year')
 )
 
-# Read DOI -> concept mapping and map to openaire_id, keeping max confidence per concept
-concepts_doi = spark.read.options(header='False', delimiter='\t').csv(concepts_file)
-concepts_doi = concepts_doi.toDF('doi', 'concept', 'confidence')
-concepts_doi = concepts_doi.withColumn('confidence', F.col('confidence').cast(DoubleType()))
+# Read pid -> concept mapping, keeping max confidence per concept
+concepts_raw = spark.read.options(header='False', delimiter='\t').csv(concepts_file)
+concepts_raw = concepts_raw.toDF('pid', 'concept', 'confidence')
+concepts_raw = concepts_raw.withColumn('confidence', F.col('confidence').cast(DoubleType()))
 
-# Join concepts on DOI (pid) to get openaire_id
-concepts_with_open = concepts_doi.join(openaire_to_pid, concepts_doi.doi == openaire_to_pid.pid, 'inner')
+# Keep only concepts that match scored publications
+concepts = concepts_raw.join(scores.select('pid'), 'pid', 'inner')
 
-# Keep unique concepts with max confidence per openaire_id (input file already filtered to >= 0.3)
-concepts = concepts_with_open.groupBy('openaire_id', 'concept').agg(F.max('confidence').alias('confidence'))
+# Keep unique concepts with max confidence per pid
+concepts = concepts.groupBy('pid', 'concept').agg(F.max('confidence').alias('confidence'))
 
-# Keep up to top 3 concepts per openaire_id by confidence
-top3_window = Window.partitionBy('openaire_id').orderBy(F.col('confidence').desc())
+# Keep up to top 3 concepts per pid by confidence
+top3_window = Window.partitionBy('pid').orderBy(F.col('confidence').desc())
 concepts = concepts.withColumn('rn', F.row_number().over(top3_window)).filter(F.col('rn') <= 3).drop('rn')
 
-# Persist an output file for openaire_id -> concept (max confidence)
-concepts.select('openaire_id', 'concept', 'confidence')\
-    .orderBy('openaire_id', 'confidence')\
-    .write.mode('overwrite').options(header='False', delimiter='\t').csv(openaire_concepts_output_file)
-
-# Build working dataframe at openaire_id level and keep same downstream column name 'id'
-d = concepts.join(scores, 'openaire_id').repartition(64, "openaire_id").select(
-    F.col('openaire_id').alias('id'), 'concept', 'pagerank', 'attrank', 'cc', '3y-cc', 'type', 'year'
+# Build working dataframe keyed by publication id
+d = concepts.join(scores, 'pid').repartition(64, 'pid').select(
+    F.col('pid').alias('id'), 'concept', 'pagerank', 'attrank', 'cc', '3y-cc', 'type', 'year'
 ).cache()
 
 # ============================================================================
@@ -225,52 +212,31 @@ for row in limits_df.collect():
 # WRITE OUTPUT FILES
 # ============================================================================
 
-# Write FWCI for OpenAIRE IDs
-logger.info("Writing FWCI for OpenAIRE IDs")
-d.select(
-    F.col("id").alias("openaire_id"),
-    F.col("concept").alias("concept"),
-    F.col("fwci").alias("fwci")
-).write.options(header='False', delimiter='\t', compression='gzip', nullValue='').mode('overwrite').csv(output_dir + "/bip-db/" + "FWCI_openaire_ids.txt.gz")
-
-# Write 3y-FWCI for OpenAIRE IDs
-logger.info("Writing 3y-FWCI for OpenAIRE IDs")
-d.select(
-    F.col("id").alias("openaire_id"),
-    F.col("concept").alias("concept"),
-    F.col("3y-fwci").alias("3y-fwci")
-).write.options(header='False', delimiter='\t', compression='gzip', nullValue='').mode('overwrite').csv(output_dir + "/bip-db/" + "3-year_FWCI_openaire_ids.txt.gz")
-
-# Prepare data with PIDs for DOI-based outputs (inner join to keep only papers with PIDs)
-d_with_pid = d.join(openaire_to_pid, d.id == openaire_to_pid.openaire_id, 'inner') \
-    .drop('id') \
-    .withColumnRenamed('pid', 'id')
-
-logger.info("Total rows with valid PIDs: %d", d_with_pid.count())
+logger.info("Total rows: %d", d.count())
 
 # Write topic-based classes output
 logger.info("Writing topic-based classes output")
-d_with_pid.select(
+d.select(
     F.col("id").alias("identifier"),
     F.col("concept").alias("concept"),
     F.col("pagerank_five_point_class").alias("pagerank_class"),
     F.col("attrank_five_point_class").alias("attrank_class"),
     F.col("3y-cc_five_point_class").alias("3y-cc_class"),
     F.col("cc_five_point_class").alias("cc_class")
-).write.options(header='True', delimiter='\t').mode('overwrite').csv(output_dir + "/topics/")
+).write.options(header='True', delimiter='\t').mode('overwrite').csv(output_dir + "topics")
 
-# Write FWCI for PIDs (DOIs)
-logger.info("Writing FWCI for PIDs")
-d_with_pid.select(
+# Write FWCI
+logger.info("Writing FWCI")
+d.select(
     F.col("id").alias("identifier"),
     F.col("concept").alias("concept"),
     F.col("fwci").alias("fwci")
-).write.options(header='False', delimiter='\t', compression='gzip', nullValue='').mode('overwrite').csv(output_dir + "/bip-db/" + "FWCI.txt.gz")
+).write.options(header='True', delimiter='\t', nullValue='').mode('overwrite').csv(output_dir + "FWCI")
 
-# Write 3y-FWCI for PIDs (DOIs)
-logger.info("Writing 3y-FWCI for PIDs")
-d_with_pid.select(
+# Write 3y-FWCI
+logger.info("Writing 3y-FWCI")
+d.select(
     F.col("id").alias("identifier"),
     F.col("concept").alias("concept"),
     F.col("3y-fwci").alias("3y-fwci")
-).write.options(header='False', delimiter='\t', compression='gzip', nullValue='').mode('overwrite').csv(output_dir + "/bip-db/" + "3-year_FWCI.txt.gz")
+).write.options(header='True', delimiter='\t', nullValue='').mode('overwrite').csv(output_dir + "3-year_FWCI")

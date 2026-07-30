@@ -145,11 +145,9 @@ sys.stdout.flush()
 # Initialise SPARK Data
 
 # Get a DataFrame with pairs of <node, score>.
-# Recall our input format to understand what the following map function does:
-# <paper> <tab> <cited_papers|num_cited_papers|score> <tab> <previous_score> <tab> <publication_year>
-scores = input_data.select('paper', F.split('citation_data', "\|").alias('citation_data') )\
-		   .select('paper', F.expr('element_at(citation_data, size(citation_data))').alias('score')).cache()
-		   # .select('paper', F.element_at(F.col('citation_data'), F.expr('size(citation_data)') ).alias('score') ).cache()
+# Input format:
+# <paper> <tab> <cited_papers|num_cited_papers> <tab> <initial_score> <tab> <publication_year>
+scores = input_data.select('paper', F.col('prev_score').alias('score')).cache()
 
 # Duplicate scores to keep track of scores in consecutive iterations
 previous_scores	= scores.select('paper',F.col('score').alias('previous_score'))
@@ -160,7 +158,7 @@ sys.stdout.flush()
 
 # Get a dataframe of doi - cited list
 outlinks = input_data.select('paper', F.split('citation_data', "\|").alias('cited_papers'), 'pub_year')\
-		     .select('paper', 'cited_papers', F.expr('size(cited_papers)-2').alias('cited_paper_size'), 'pub_year')\
+		     .select('paper', 'cited_papers', F.expr('size(cited_papers)-1').alias('cited_paper_size'), 'pub_year')\
 		     .select('paper', F.expr('slice(cited_papers, 1, cited_paper_size)').alias('cited_papers'), 'pub_year')\
 		     .select('paper', F.array_join('cited_papers', '|').alias('cited_papers'), 'pub_year')\
 		     .select('paper', F.split('cited_papers', ',').alias('cited_papers'), 'pub_year').repartition('paper').cache()
@@ -339,21 +337,17 @@ print ("0.1%\t" + str(top_01_score))
 print ("0.01%\t" + str(top_001_score))
 print ("\n\n")
 # ---------------------------------------------- #
-# Add 3-scale classes to score dataframe
+# Add normalized score and five-point impact class
 scores = scores.select('paper', F.col('score').alias('pr'))\
-		.withColumn('normalized_pr', F.lit(F.col('pr')/float(max_score)))\
-		.withColumn('three_point_class', F.lit('C'))
-scores = scores.withColumn('three_point_class', F.when(scores.pr >= top_1_score, F.lit('B')).otherwise(F.col('three_point_class')) )
-scores = scores.withColumn('three_point_class', F.when(scores.pr >= top_001_score, F.lit('A')).otherwise(F.col('three_point_class')) )	
-scores = scores.select(F.regexp_replace('paper', 'comma_char', ',').alias('doi'), 'pr', 'normalized_pr', 'three_point_class')
+		.withColumn('normalized_pr', F.lit(F.col('pr')/float(max_score)))
+scores = scores.select(F.regexp_replace('paper', 'comma_char', ',').alias('doi'), 'pr', 'normalized_pr')
 
-# Add six point class to score dataframe
-scores = scores.withColumn('five_point_class', F.lit('E'))
+scores = scores.withColumn('five_point_class', F.lit('C5'))
 # scores = scores.withColumn('six_point_class', F.when(scores.pr >= top_20_score, F.lit('E')).otherwise(F.col('six_point_class')) )
-scores = scores.withColumn('five_point_class', F.when(scores.pr >= top_10_score, F.lit('D')).otherwise(F.col('five_point_class')) )
-scores = scores.withColumn('five_point_class', F.when(scores.pr >= top_1_score, F.lit('C')).otherwise(F.col('five_point_class')) )
-scores = scores.withColumn('five_point_class', F.when(scores.pr >= top_01_score, F.lit('B')).otherwise(F.col('five_point_class')) )
-scores = scores.withColumn('five_point_class', F.when(scores.pr >= top_001_score, F.lit('A')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.pr >= top_10_score, F.lit('C4')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.pr >= top_1_score, F.lit('C3')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.pr >= top_01_score, F.lit('C2')).otherwise(F.col('five_point_class')) )
+scores = scores.withColumn('five_point_class', F.when(scores.pr >= top_001_score, F.lit('C1')).otherwise(F.col('five_point_class')) )
 # ---------------------------------------------- #
 print ("Finished! Writing output to file...")
 # ---------------------------------------------- #
