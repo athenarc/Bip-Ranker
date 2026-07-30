@@ -1,4 +1,4 @@
-# Bip-Ranker
+# BIP! Ranker
 
 PySpark scripts for impact-based ranking of scientific publications (as used in [Bip! Finder](https://bip.imsi.athenarc.gr/) and related datasets).
 
